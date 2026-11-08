@@ -43,7 +43,7 @@ export function renderHome(ctx) {
           <button class="btn btn-lg" data-home="start">${icon('play', 18)} 開始任務</button>
           <button class="btn btn-ghost btn-lg" data-home="how">${icon('info', 18)} 玩法說明</button>
         </div>
-        <p class="home-note">${icon('lock', 13)} 登入後，你的答案、方法和分數會記錄給老師。${ctx.dev ? ' · DEV 模式' : ''}</p>
+        <p class="home-note">${icon('lock', 13)} ${ctx.guest ? '訪客模式：進度只在此裝置，不會上傳。' : `登入後，你的答案、方法和分數會記錄給老師。${ctx.dev ? ' · DEV 模式' : ''}`}</p>
         ${savedBlock}
       </div>
 
