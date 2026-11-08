@@ -1,7 +1,7 @@
 import { APP_ID, SCHEMA_VERSION } from '../logic.js';
 import { ANALYSIS_QUESTIONS, VARIABLE_QUESTIONS } from '../questions.js';
 
-const SESSION_KEY = 'polarLab.session.v1';
+const SESSION_PREFIX = 'polarLab.session.v2.';
 const PROFILE_KEY = 'polarLab.profile.v1';
 const MUTE_KEY = 'polarLab.muted.v1';
 
@@ -23,13 +23,15 @@ function writeJson(key, value) {
   }
 }
 
+const sessionKey = (uid) => `${SESSION_PREFIX}${uid || 'anonymous'}`;
+
 export function saveSession(state) {
   if (!state?.sessionId) return false;
-  return writeJson(SESSION_KEY, { savedAtMs: Date.now(), state });
+  return writeJson(sessionKey(state.player?.uid), { savedAtMs: Date.now(), state });
 }
 
 export function loadSession(uid) {
-  const wrapped = readJson(SESSION_KEY);
+  const wrapped = readJson(sessionKey(uid));
   if (!wrapped?.state) return null;
   const state = wrapped.state;
   if (state.app !== APP_ID || state.schemaVersion !== SCHEMA_VERSION) return null;
@@ -37,9 +39,9 @@ export function loadSession(uid) {
   return state;
 }
 
-export function clearSession() {
+export function clearSession(uid) {
   try {
-    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(sessionKey(uid));
   } catch (e) {
     /* ignore */
   }

@@ -227,6 +227,7 @@ function enterApp({ isGuest = false } = {}) {
   }
 
   if (DEV && params.get('demo')) {
+    document.body.dataset.ready = '1';
     seedDemo(params.get('demo'));
     return;
   }
