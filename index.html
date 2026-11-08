@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#061a2b" />
+  <meta name="description" content="P4 Science 4LD2 — an interactive 3D experiment: how does polar bear fur keep the bear warm? Practise reading a thermometer at eye level, record temperature over time, and master independent, dependent and controlled variables." />
+  <title>北極熊保暖實驗室 · Polar Bear Fur Lab</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23071a2b'/%3E%3Cg stroke='%236ee7f9' stroke-width='4' stroke-linecap='round'%3E%3Cpath d='M32 10v44M13 21l38 22M51 21 13 43'/%3E%3C/g%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <div id="scene-fallback" aria-hidden="true"></div>
+  <div id="vignette" aria-hidden="true"></div>
+  <div id="snow-dust" aria-hidden="true"></div>
+
+  <div id="boot" class="boot">
+    <div class="boot-glow"></div>
+    <div class="boot-mark" aria-hidden="true">
+      <svg viewBox="0 0 80 80" width="80" height="80" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+        <path d="M40 8v64M12.3 24l55.4 32M67.7 24 12.3 56" />
+        <path d="M31 15l9 9 9-9M31 65l9-9 9 9M15 32l9 2-2-9M65 48l-9-2 2 9M15 48l9-2-2 9M65 32l-9 2 2-9" />
+      </svg>
+    </div>
+    <p class="boot-kicker">P4 SCIENCE · 4LD2</p>
+    <h1>北極熊保暖實驗室</h1>
+    <p class="boot-sub">Polar Bear Fur Lab</p>
+    <div class="boot-bar"><i id="boot-fill"></i></div>
+    <p id="boot-status" class="boot-status">正在準備北極實驗室…</p>
+    <p class="boot-tip">請用橫向螢幕 · Best in landscape</p>
+  </div>
+
+  <div id="app" class="app hidden">
+    <header id="topbar" class="topbar"></header>
+    <main id="screen" class="screen" aria-live="polite"></main>
+    <div id="toast" class="toast-host" aria-live="polite"></div>
+  </div>
+
+  <noscript>
+    <div class="noscript">This activity needs JavaScript. Please enable it and reload.</div>
+  </noscript>
+
+  <script>
+    setTimeout(function () {
+      if (!document.body.dataset.ready) {
+        var el = document.getElementById('boot-status');
+        if (el && !el.dataset.error) {
+          el.dataset.error = '1';
+          el.classList.add('boot-error');
+          el.textContent = '載入時間較長。請檢查網絡，然後重新整理。';
+        }
+      }
+    }, 15000);
+  </script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
