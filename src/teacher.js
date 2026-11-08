@@ -14,6 +14,8 @@ import { trueReading, starsFor } from '../logic.js';
 const params = new URLSearchParams(location.search);
 const DEMO = params.has('demo');
 const app = $('#teacher-app');
+let searchTimer = null;
+let composing = false;
 
 const state = {
   view: 'loading',
@@ -183,14 +185,28 @@ function filterSessions(list) {
 }
 
 function bindDashboard() {
-  $('#t-search')?.addEventListener('input', (e) => {
-    state.query = e.target.value;
+  const applySearch = () => {
+    clearTimeout(searchTimer);
     renderDashboard();
     const input = $('#t-search');
     if (input) {
       input.focus();
       input.setSelectionRange(state.query.length, state.query.length);
     }
+  };
+  const search = $('#t-search');
+  search?.addEventListener('compositionstart', () => {
+    composing = true;
+  });
+  search?.addEventListener('compositionend', () => {
+    composing = false;
+    applySearch();
+  });
+  search?.addEventListener('input', (e) => {
+    state.query = e.target.value;
+    if (composing) return;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applySearch, 220);
   });
   $('#t-class')?.addEventListener('change', (e) => {
     state.klass = e.target.value;
