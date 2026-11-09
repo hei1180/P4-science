@@ -439,7 +439,7 @@ function openMeasurement(ctx, targetMin, capturedAtMin) {
     world.setCupTemps(trueControl, trueCotton);
     world.setClock(capturedAtMin, `MEASURE ${targetMin}:00`);
     world.setCue('ready');
-    world.measurementView(angles.control, 0.9);
+    world.focusCup('control', angles.control, 0.9);
     world.setActiveCup('control');
   }
 
@@ -564,8 +564,7 @@ function openMeasurement(ctx, targetMin, capturedAtMin) {
     if (cup === current.activeCup) return;
     current.activeCup = cup;
     if (current.cupStarted[cup] == null) current.cupStarted[cup] = performance.now();
-    ctx.world?.setActiveCup(cup);
-    ctx.world?.setMeasurementElevation(current.angles[cup]);
+    ctx.world?.focusCup(cup, current.angles[cup], 0.55);
     updateTabs();
     requestAnimationFrame(() => input?.focus());
   };
@@ -573,7 +572,7 @@ function openMeasurement(ctx, targetMin, capturedAtMin) {
   const setAngle = (deg) => {
     const cup = current.activeCup;
     current.angles[cup] = snapAngle(deg);
-    ctx.world?.setMeasurementElevation(current.angles[cup]);
+    ctx.world?.setElevation(current.angles[cup]);
     redraw();
   };
 

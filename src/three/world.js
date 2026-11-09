@@ -332,29 +332,6 @@ export async function createWorld({ canvas, onProgress = () => {} } = {}) {
     focusTraining(elevation = 0, duration = 0.8) {
       rig.focusEye({ target: trainingPoint(), radius: 0.62, elevation, duration });
     },
-    measurementView(elevation = 0, duration = 0.9) {
-      rig.eye = null;
-      rig.drift = false;
-      const rad = (elevation * Math.PI) / 180;
-      const target = new THREE.Vector3(0.35, 1.2, 0);
-      const pos = new THREE.Vector3(0.35, 1.2 + Math.sin(rad) * 2.2, Math.cos(rad) * 2.2);
-      rig.moveTo(pos, target, duration);
-      rig.base = { pos: pos.clone(), target: target.clone() };
-    },
-    setMeasurementElevation(elevation = 0) {
-      if (state.stage !== 'experiment') return;
-      const rad = (elevation * Math.PI) / 180;
-      const target = new THREE.Vector3(0.35, 1.2, 0);
-      const pos = new THREE.Vector3(0.35, 1.2 + Math.sin(rad) * 2.2, Math.cos(rad) * 2.2);
-      rig.eye = null;
-      rig.drift = false;
-      rig.tween = 1;
-      rig.pos.copy(pos);
-      rig.fromPos.copy(pos);
-      rig.camera.position.copy(pos);
-      rig.camera.lookAt(target);
-      rig.base = { pos: pos.clone(), target: target.clone() };
-    },
     setElevation(deg) {
       rig.setElevation(deg, true);
     },

@@ -39,7 +39,7 @@ The app is deliberately explicit about **method**, not just the final number.
 At the moment a pupil records a cup, the app stores the camera’s vertical angle relative to the meniscus.
 
 * **Aligned** = within **±2.5°**. At this angle the apparent shift is under 0.15 °C, so the nearest whole number is reliable.
-* **Not aligned** = the pupil read from above or below. The 2D reading scope shows the shift. The training rounds use a 3D close-up for the effect; the measurement view keeps both cups visible so pupils can compare them while recording.
+* **Not aligned** = the pupil read from above or below. The 2D reading scope shows the shift. The training rounds use a 3D close-up for the effect; during the experiment, the view zooms sharply into the active cup, while the two cup tabs keep both recorded values visible so pupils can compare them. Switching tabs zooms to the other cup.
 * The angle is exaggerated for visibility. The real technique is identical: **eye level with the top of the liquid column, look straight across**.
 
 ### On time
