@@ -22,21 +22,26 @@ import {
   serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 
-const firebaseConfig = {
-  apiKey: 'REPLACE_WITH_FIREBASE_WEB_API_KEY',
-  authDomain: 'p1-maths.firebaseapp.com',
-  projectId: 'p1-maths',
-  storageBucket: 'p1-maths.firebasestorage.app',
-  messagingSenderId: '593709237589',
-  appId: '1:593709237589:web:d71dd6020234b554865bdc',
-  measurementId: 'G-ZWXELF5EK5',
-};
+// The real web config is deliberately NOT committed. The GitHub Actions Pages
+// build writes src/firebase-config.js from the FIREBASE_CONFIG repository
+// secret. For local sign-in, copy src/firebase-config.example.js to
+// src/firebase-config.js and fill it in (that file is gitignored).
+let firebaseConfig = null;
+try {
+  const mod = await import('./firebase-config.js');
+  const cfg = mod?.FIREBASE_CONFIG;
+  if (cfg && typeof cfg.apiKey === 'string' && !cfg.apiKey.includes('REPLACE_WITH')) {
+    firebaseConfig = cfg;
+  }
+} catch (err) {
+  console.warn('Firebase config not installed. Google sign-in is disabled; ?dev and ?guest still work.');
+}
 
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
-provider.setCustomParameters({ prompt: 'select_account' });
+export const app = firebaseConfig ? initializeApp(firebaseConfig) : null;
+export const auth = app ? getAuth(app) : null;
+export const db = app ? getFirestore(app) : null;
+const provider = app ? new GoogleAuthProvider() : null;
+if (provider) provider.setCustomParameters({ prompt: 'select_account' });
 
 /** SHA-256 of each teacher's lower-case email. The address is never committed. */
 export const TEACHER_EMAIL_HASHES = [
@@ -49,6 +54,8 @@ export async function isTeacherEmail(email) {
   const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
   return TEACHER_EMAIL_HASHES.includes(hex);
 }
+
+const NOT_CONFIGURED = 'Firebase is not configured on this copy. Add src/firebase-config.js locally, or set the FIREBASE_CONFIG GitHub secret for deployment.';
 
 function friendlyAuthError(err) {
   const code = err?.code || '';
@@ -69,6 +76,7 @@ function friendlyAuthError(err) {
 
 /** Popup first; fall back to redirect when the browser blocks popups. */
 export async function signIn() {
+  if (!auth || !provider) throw new Error(NOT_CONFIGURED);
   try {
     await signInWithPopup(auth, provider);
   } catch (err) {
@@ -81,6 +89,7 @@ export async function signIn() {
 }
 
 export async function completeRedirectSignIn() {
+  if (!auth) return;
   try {
     await getRedirectResult(auth);
   } catch (err) {
@@ -89,6 +98,7 @@ export async function completeRedirectSignIn() {
 }
 
 export async function signOutUser() {
+  if (!auth) return;
   try {
     await signOut(auth);
   } catch (err) {
@@ -101,6 +111,10 @@ export async function signOutUser() {
  * user has { uid, name, email, photoURL }.
  */
 export function onUser(cb, onSignedOut = () => {}) {
+  if (!auth) {
+    onSignedOut();
+    return;
+  }
   onAuthStateChanged(auth, (user) => {
     if (!user) {
       onSignedOut();
@@ -116,6 +130,7 @@ export function onUser(cb, onSignedOut = () => {}) {
 }
 
 export async function savePolarSession(record) {
+  if (!db) throw new Error(NOT_CONFIGURED);
   const payload = { ...record, createdAt: serverTimestamp() };
   // Deterministic id = retry-safe (no duplicate if the first response was lost).
   const id = String(record.sessionId || '').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120);
@@ -125,6 +140,7 @@ export async function savePolarSession(record) {
 }
 
 export async function loadPolarSessions(max = 400) {
+  if (!db) throw new Error(NOT_CONFIGURED);
   const q = query(collection(db, 'polarSessions'), orderBy('finishedAtMs', 'desc'), limit(max));
   const snap = await getDocs(q);
   const rows = [];

@@ -1,0 +1,53 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inject Firebase web config from repository secret
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
+        run: |
+          node -e "const fs=require('fs'); const raw=process.env.FIREBASE_CONFIG; if(!raw) throw new Error('FIREBASE_CONFIG repository secret is missing'); const cfg=JSON.parse(raw); fs.writeFileSync('src/firebase-config.js', 'export const FIREBASE_CONFIG = ' + JSON.stringify(cfg, null, 2) + ';\n');"
+          test -s src/firebase-config.js
+
+      - name: Assemble static site
+        run: |
+          mkdir -p _site
+          rsync -a \
+            --exclude='.git' --exclude='.github' --exclude='node_modules' \
+            --exclude='tests' --exclude='screenshots' --exclude='.memsearch' \
+            ./ _site/
+          test -f _site/index.html
+          test -f _site/src/firebase-config.js
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
