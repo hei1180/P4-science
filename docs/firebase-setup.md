@@ -2,7 +2,7 @@
 
 This app uses the **same Firebase project as the P1 maths games** so pupils have one Google sign-in. It writes to a new collection, `polarSessions`, and the teacher dashboard reads it.
 
-The app will not let a student save until steps 1–3 are done. For a quick look without Firebase, use `/?dev` or `/?guest`; for the dashboard use `teacher.html?demo`.
+The app needs steps 1–4 before a real pupil can sign in and save. For a quick look without Firebase, use `/?dev` or `/?guest`; for the dashboard use `teacher.html?demo`.
 
 ---
 
@@ -67,7 +67,26 @@ Copy the 64-character hash into the array. Then use the same address in the Fire
 
 ---
 
-## 4. Test the write and the read
+## 4. Provide the Firebase web config
+
+The real web config is deliberately **not** in this repository.
+
+* **Deployed site:** the GitHub Actions workflow `.github/workflows/pages.yml` reads the repository secret **`FIREBASE_CONFIG`** (a JSON object with `apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`, `measurementId`) and writes `src/firebase-config.js` before deploying. The secret is already set for this repo; a fresh clone needs it recreated with `gh secret set FIREBASE_CONFIG` or GitHub → Settings → Secrets and variables → Actions.
+* **Local development:** copy `src/firebase-config.example.js` to `src/firebase-config.js`, fill in the values from Firebase Console → Project settings → Your apps, and never commit it. It is gitignored. `?dev` and `?guest` work without it; only real Google sign-in needs it.
+
+A Firebase **web API key is a public client identifier, not a secret** — the deployed JavaScript necessarily contains it. Real protection comes from:
+
+1. Firestore security rules (step 2) and the teacher-only read rule.
+2. Restricting the key in Google Cloud Console → APIs & Services → Credentials → the browser key:
+   * Application restrictions: **HTTP referrers**
+   * Add `https://hei1180.github.io/*` and `http://localhost:8000/*`
+   * API restrictions: Identity Toolkit, Cloud Firestore and the Firebase APIs used by the app.
+
+The GitHub secret keeps the key out of the repository and git history; it does not hide it from the browser, which is normal for Firebase web apps.
+
+---
+
+## 5. Test the write and the read
 
 1. Open `http://localhost:8000/?dev`, complete the lesson quickly (or use the dev `⏭` button in the experiment) and finish the report. Dev mode deliberately does **not** write to Firebase.
 2. Open `http://localhost:8000/` and sign in with a **pupil** Google account. Complete a short session. In Firebase Console → Firestore → `polarSessions`, a document should appear with the pupil’s uid.
@@ -84,25 +103,27 @@ Copy the 64-character hash into the array. Then use the same address in the Fire
 | Teacher dashboard says “此帳戶沒有教師權限” | The email hash in `src/firebase.js` does not match the account |
 | Teacher sees “讀取失敗 … Firestore refused” | The rule from step 2 is missing, or the teacher email in the rule is wrong |
 | Login popup closes immediately | Allow popups for the site, or use the redirect fallback (the app tries it automatically) |
+| Google sign-in says “Firebase is not configured” | Add `src/firebase-config.js` locally, or set the `FIREBASE_CONFIG` repository secret for the Pages build |
 | 3D scene missing | WebGL is blocked; the 2D reading scope and all questions still work, but use Chrome/Safari on a device with WebGL for the full lesson |
 
 ---
 
-## 5. Privacy
+## 6. Privacy
 
 The record contains the pupil’s Google display name, email, class code, six temperatures, eye angles, capture times and quiz answers. It is visible only to the pupil and the teacher account under the rules. The teacher CSV should be stored in a restricted drive. The app does not use analytics or advertising.
 
-The Firebase web config in `src/firebase.js` is public by design (as in the P1 games); the security comes from the Firestore rules and Google sign-in.
+The Firebase web config is injected from the encrypted `FIREBASE_CONFIG` repository secret during the Pages build. It is still visible in the browser bundle by design; security comes from the Firestore rules, Google sign-in, and the API-key restrictions described in step 4.
 
 ---
 
-## 6. Hosting later
+## 7. Hosting later
 
-The app is plain static files — no build step. A GitHub Pages deploy only needs:
+The app is plain static files — no bundler. GitHub Pages is deployed by `.github/workflows/pages.yml`, which injects the `FIREBASE_CONFIG` secret and uploads the static site. A deploy needs:
 
 * `index.html`, `teacher.html`, `styles.css`, `logic.js`, `questions.js`
 * `src/`, `assets/`, `docs/`
 * the Firebase authorized domain from step 1
 * the rules from step 2
+* the `FIREBASE_CONFIG` repository secret from step 4
 
 Open the page at **`https://<account>.github.io/<repo>/`**; do not open `index.html` from the file system. The relative asset paths work under a repository subpath.

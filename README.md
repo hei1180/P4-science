@@ -21,6 +21,8 @@ python3 -m http.server 8000
 
 Do **not** open `index.html` with `file://` — the GLB model and Firebase sign-in both need a server.
 
+For local Google sign-in, copy `src/firebase-config.example.js` to `src/firebase-config.js` and fill in the Firebase web config. That file is **gitignored**. The deployed GitHub Pages build injects the same config from the encrypted `FIREBASE_CONFIG` repository secret; `?dev` and `?guest` work without it.
+
 ### Preview routes
 
 | URL | What it does |
@@ -80,7 +82,8 @@ The app deliberately reuses the **p1-maths** project so there is one Google sign
    printf '%s' 'teacher@example.com' | shasum -a 256
    ```
    Then update the email in the Firestore rule as well.
-4. **Test** — sign in at `/?dev` first to check the lesson, then use the real Google account at `/`. Complete one short session and confirm a document appears in `polarSessions`. Open `teacher.html` with the teacher account.
+4. **Web config** — the real Firebase config is not committed. The Pages workflow reads the `FIREBASE_CONFIG` repository secret (JSON) and writes `src/firebase-config.js` during the build. For local real Google sign-in, copy `src/firebase-config.example.js` to `src/firebase-config.js` and fill it in; never commit that file. A Firebase **web** API key is a public client identifier, not a secret; restrict it to `hei1180.github.io` and `localhost` in Google Cloud Console and rely on the Firestore rules.
+5. **Test** — sign in at `/?dev` first to check the lesson, then use the real Google account at `/`. Complete one short session and confirm a document appears in `polarSessions`. Open `teacher.html` with the teacher account.
 
 Full walkthrough: [`docs/firebase-setup.md`](docs/firebase-setup.md).
 
@@ -116,10 +119,11 @@ styles.css                 complete design system
 logic.js                   cooling curves, parallax, scoring, session records
 questions.js               analysis + variables question banks
 src/app.js                 boot, OAuth, routing, dev hooks
-src/firebase.js            shared p1-maths Firebase config + polarSessions I/O
+src/firebase.js            Firebase SDK, auth and polarSessions I/O (config injected)
 src/state.js               local resume, profile, mute
 src/audio.js               WebAudio sound effects (no audio files)
 src/ui.js                  icons, toasts, modal, confetti
+src/firebase-config.example.js  local template for the gitignored web config
 src/teacher.js             class dashboard, detail view, CSV
 src/screens/*.js           home, login, training, experiment, analysis, quiz, results
 src/three/world.js         renderer, camera rig, stage direction
@@ -130,6 +134,7 @@ src/three/scope.js         canvas reading scope (parallax view)
 assets/models/bear.glb     free low-poly bear, recoloured white
 tests/logic.test.mjs       physics, scoring, record and question-bank tests
 firestore.rules            merged P1 + P4 rules
+.github/workflows/pages.yml  GitHub Pages build/deploy + secret injection
 docs/                      setup + teacher guide
 ```
 
