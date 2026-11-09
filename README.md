@@ -5,6 +5,8 @@ A polished 3D science simulation for **P4 Science · 4LD2 動物的適應特徵*
 
 Students use a large demonstration thermometer at eye level, run the cotton-vs-bare-cup experiment over simulated 0 / 3 / 6 minutes, record both cups in a data table, analyse the class data, and complete a quiz on **自變項 / 因變項 / 不變項**. Google sign-in and Firestore store every reading, method check and answer for the teacher.
 
+**Live site:** https://hei1180.github.io/P4-science/
+
 Built with **three.js 0.186.1**, plain ES modules and the existing **p1-maths** Firebase project (same Google OAuth as the P1 maths games).
 
 ---
