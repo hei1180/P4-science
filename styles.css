@@ -520,8 +520,7 @@ p { line-height: 1.62; }
 
 .read-overlay {
   position: fixed; inset: 0; z-index: 40; display: flex; align-items: stretch;
-  background: linear-gradient(90deg, rgba(3,12,20,.1), rgba(3,12,20,.55) 42%, rgba(3,12,20,.85));
-  backdrop-filter: blur(2px);
+  background: linear-gradient(90deg, rgba(3,12,20,.04), rgba(3,12,20,.4) 46%, rgba(3,12,20,.78) 70%);
   animation: fadeIn .35s var(--ease);
 }
 @keyframes fadeIn { from { opacity: 0; } }
@@ -1096,3 +1095,29 @@ body.measuring .read-overlay { background: linear-gradient(90deg, rgba(3,12,20,.
 
 .modal-card .muted { color: var(--ink-soft); }
 .modal-card .small { color: var(--ink-soft); }
+
+/* Ghost buttons on light paper cards must use dark ink. */
+.paper .btn-ghost {
+  --btn-bg: rgba(8, 36, 58, .06);
+  --btn-ink: var(--ink);
+  border: 1px solid rgba(8, 36, 58, .18);
+  box-shadow: none;
+}
+.paper .btn-ghost:hover { background: rgba(8, 36, 58, .1); }
+
+/* Compact class-data reference inside analysis questions. */
+.quiz-ref {
+  margin: 14px 0 2px; padding: 10px 12px 8px; border-radius: 12px;
+  background: rgba(8, 36, 58, .045); border: 1px solid rgba(8, 36, 58, .1);
+}
+.quiz-ref-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.quiz-ref-head b { font-size: 10px; letter-spacing: .12em; color: #087d96; }
+.quiz-ref-head span { font-size: 9px; color: var(--ink-soft); font-weight: 800; }
+.quiz-data-table { font-size: 11.5px; }
+.quiz-data-table th, .quiz-data-table td { padding: 5px 6px; }
+.quiz-data-table .val { font-size: 14px; }
+@media (max-width: 560px) {
+  .quiz-ref { padding: 8px 9px 6px; }
+  .quiz-data-table { font-size: 10.5px; }
+  .quiz-data-table .val { font-size: 13px; }
+}

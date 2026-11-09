@@ -39,7 +39,7 @@ The app is deliberately explicit about **method**, not just the final number.
 At the moment a pupil records a cup, the app stores the camera’s vertical angle relative to the meniscus.
 
 * **Aligned** = within **±2.5°**. At this angle the apparent shift is under 0.15 °C, so the nearest whole number is reliable.
-* **Not aligned** = the pupil read from above or below. The 2D reading scope shows the shift, and the 3D view is rendered with the same parallax geometry.
+* **Not aligned** = the pupil read from above or below. The 2D reading scope shows the shift. The training rounds use a 3D close-up for the effect; the measurement view keeps both cups visible so pupils can compare them while recording.
 * The angle is exaggerated for visibility. The real technique is identical: **eye level with the top of the liquid column, look straight across**.
 
 ### On time
@@ -90,7 +90,7 @@ Open `teacher.html` and sign in with the teacher account.
 * **High eye-level %, low reading %** — the viewing position is right but scale-reading is insecure; use the printed thermometer or the worksheet’s 0/3/6 table.
 * **Low on-time %** — the pupil was not watching the clock; in the real experiment, assign the 計時記錄員 role and practise the 3-minute cue.
 * **High reading %, low analysis** — the pupil can collect data but needs the CER sentence frames; use the worksheet’s 8. 分析數據 and the claim-evidence-reasoning frame.
-* **Low variables** — revisit the three definitions with the actual apparatus: point to the cotton (IV), the thermometer (DV) and the 80 ml / 45 °C / same cup / same time (controls).
+* **Low variables** — revisit the three definitions with the actual apparatus: point to the cotton (IV), the thermometer (DV) and the 80 ml / 45 °C / same type of cup for both groups / same time (controls).
 
 ---
 

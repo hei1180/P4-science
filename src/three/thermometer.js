@@ -90,16 +90,6 @@ export function createThermometer({ scale = 1 } = {}) {
   collar.position.y = SCALE_H + 0.02;
   group.add(collar);
 
-  // Active highlight ring
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.06, 0.0024, 8, 40),
-    new THREE.MeshBasicMaterial({ color: 0x6ee7f9, transparent: true, opacity: 0.8 }),
-  );
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = SCALE_H * 0.62;
-  ring.visible = false;
-  group.add(ring);
-
   group.scale.setScalar(scale);
   group.userData.setTemp = (tempC) => {
     const t = Math.max(SIM.thermometerMin, Math.min(SIM.thermometerMax, tempC));
@@ -111,8 +101,9 @@ export function createThermometer({ scale = 1 } = {}) {
     meniscus.position.y = top;
     meniscus.visible = t > SIM.thermometerMin + 0.1;
   };
-  group.userData.setActive = (active) => {
-    ring.visible = !!active;
+  group.userData.setActive = () => {
+    // The active cup is indicated by the tab and the reading panel;
+    // no ring is drawn across the scale because it can hide a tick.
   };
   group.userData.setTemp(SIM.startTempC);
   return group;

@@ -1,6 +1,8 @@
 import { icon, esc, confetti } from '../ui.js';
-import { answerRecord } from '../../logic.js';
+import { answerRecord, trueReading } from '../../logic.js';
 import { ANALYSIS_QUESTIONS, VARIABLE_QUESTIONS } from '../../questions.js';
+
+const CLASS_DATA = [0, 3, 6].map((t) => ({ t, control: trueReading(t, false), cotton: trueReading(t, true) }));
 
 const TAGS = {
   觀察數據: 'pill-cyan',
@@ -124,6 +126,7 @@ export function renderQuiz(ctx, opts = {}) {
             </div>
             <div class="q-prompt">${esc(question.prompt)}</div>
             <p class="q-sub">${esc(question.sub || '')}</p>
+            ${section === 'analysis' ? refTableHtml() : ''}
             ${body}
             ${explain}
             ${foot}
@@ -283,6 +286,16 @@ export function renderQuiz(ctx, opts = {}) {
   };
 }
 
+function refTableHtml() {
+  return `<div class="quiz-ref">
+    <div class="quiz-ref-head"><b>全班數據 · CLASS DATA</b><span>單位：°C</span></div>
+    <table class="data-table quiz-data-table">
+      <thead><tr><th>時間</th><th>清水（對照）</th><th>棉花（皮毛模型）</th></tr></thead>
+      <tbody>${CLASS_DATA.map((d) => `<tr><td>${d.t} 分鐘</td><td><span class="val">${d.control}</span></td><td><span class="val">${d.cotton}</span></td></tr>`).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
 function singleHtml(q, selected, checked) {
   return `<div class="q-options">${q.options
     .map((opt, i) => {
@@ -365,7 +378,7 @@ function variablesIntro(ctx, topbar) {
         <div class="vars-intro">
           <div class="var-card"><div class="tag">${icon('target', 20)}</div><b>自變項</b><span class="en">Independent variable</span><p>我們<b>故意改變</b>的條件。在我們的實驗中：有沒有用棉花包住杯。</p></div>
           <div class="var-card"><div class="tag">${icon('chart', 20)}</div><b>因變項</b><span class="en">Dependent variable</span><p>我們<b>量度或觀察</b>的結果。在我們的實驗中：6 分鐘內水溫的下降。</p></div>
-          <div class="var-card"><div class="tag">${icon('lock', 20)}</div><b>不變項</b><span class="en">Controlled variables</span><p>其他<b>要保持一樣</b>的條件：同一個杯、80 ml、45 °C、同一房間、6 分鐘、溫度計位置。</p></div>
+          <div class="var-card"><div class="tag">${icon('lock', 20)}</div><b>不變項</b><span class="en">Controlled variables</span><p>其他<b>要保持一樣</b>的條件：兩組實驗同一款杯、80 ml、45 °C、同一房間、6 分鐘、溫度計位置。</p></div>
         </div>
         <div class="vars-example"><b>為甚麼要這樣做？</b> 如果兩杯水的水量不同，我們就不知道降溫差異是棉花造成，還是水量造成。保持不變項一樣，才能公平比較，把結果歸因於自變項。</div>
         <div class="row-between" style="margin-top:22px;flex-wrap:wrap;gap:10px">

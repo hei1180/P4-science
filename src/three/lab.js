@@ -99,7 +99,7 @@ export function createTable() {
     0.156,
     { basic: true },
   );
-  plaque.position.set(0, TABLE_Y - 0.13, 0.516);
+  plaque.position.set(0, TABLE_Y - 0.185, 0.56);
   group.add(plaque);
 
   // Cut-paper texture on the top edge
@@ -162,48 +162,69 @@ function createSteam() {
   };
 }
 
-function createCottonWrap(radius = 0.12, height = 0.25, seed = 7) {
+function createCottonWrap(radius = 0.124, height = 0.25, seed = 7) {
   const group = new THREE.Group();
   const rand = mulberry32(seed);
-  const geo = new THREE.IcosahedronGeometry(0.036, 1);
   const mat = new THREE.MeshStandardMaterial({
     color: 0xf8fdff,
-    roughness: 0.96,
+    roughness: 0.98,
     metalness: 0,
-    flatShading: true,
+    side: THREE.DoubleSide,
   });
-  const count = 120;
-  const mesh = new THREE.InstancedMesh(geo, mat, count);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+
+  // A thin, lumpy cotton jacket rather than a pile of big spheres.
+  const shellGeo = new THREE.CylinderGeometry(radius + 0.006, radius + 0.012, height - 0.018, 48, 10, true);
+  const pos = shellGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    if (Math.hypot(x, z) < 0.02) continue;
+    const a = Math.atan2(z, x);
+    const n = 1 + 0.018 * Math.sin(a * 13 + y * 38) + 0.012 * Math.sin(a * 29 - y * 23 + 1.4);
+    pos.setX(i, x * n);
+    pos.setZ(i, z * n);
+  }
+  shellGeo.computeVertexNormals();
+  const shell = new THREE.Mesh(shellGeo, mat);
+  shell.position.y = height / 2;
+  shell.castShadow = true;
+  shell.receiveShadow = true;
+  group.add(shell);
+
+  // Small surface puffs make the jacket read as cotton, without bulk.
+  const puffGeo = new THREE.IcosahedronGeometry(0.016, 1);
+  const count = 46;
+  const puffs = new THREE.InstancedMesh(puffGeo, mat, count);
+  puffs.castShadow = true;
+  puffs.receiveShadow = true;
   const dummy = new THREE.Object3D();
   for (let i = 0; i < count; i++) {
     const a = rand() * Math.PI * 2;
     const yy = 0.025 + rand() * (height - 0.05);
-    const r = radius + (rand() - 0.35) * 0.035;
+    const r = radius + 0.01 + rand() * 0.012;
     dummy.position.set(Math.cos(a) * r, yy, Math.sin(a) * r);
     dummy.rotation.set(rand() * 3, rand() * 3, rand() * 3);
-    const s = 0.62 + rand() * 0.95;
-    dummy.scale.set(s * (0.9 + rand() * 0.3), s * (0.8 + rand() * 0.25), s * (0.9 + rand() * 0.3));
+    const sc = 0.55 + rand() * 0.75;
+    dummy.scale.set(sc, sc * (0.75 + rand() * 0.2), sc);
     dummy.updateMatrix();
-    mesh.setMatrixAt(i, dummy.matrix);
+    puffs.setMatrixAt(i, dummy.matrix);
   }
-  mesh.instanceMatrix.needsUpdate = true;
-  group.add(mesh);
+  puffs.instanceMatrix.needsUpdate = true;
+  group.add(puffs);
 
-  // A few puffs on the rim so the wrapping reads from above.
-  for (let i = 0; i < 10; i++) {
-    const a = rand() * Math.PI * 2;
-    const puff = new THREE.Mesh(geo, mat);
-    puff.position.set(Math.cos(a) * (radius + 0.005), height - 0.012, Math.sin(a) * (radius + 0.005));
-    puff.scale.setScalar(0.6 + rand() * 0.5);
+  // A soft rolled edge at the top opening.
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const puff = new THREE.Mesh(puffGeo, mat);
+    puff.position.set(Math.cos(a) * (radius + 0.006), height - 0.012, Math.sin(a) * (radius + 0.006));
+    puff.scale.setScalar(0.55 + rand() * 0.35);
     puff.castShadow = true;
     group.add(puff);
   }
 
-  // Twine
   const twine = new THREE.Mesh(
-    new THREE.TorusGeometry(radius + 0.02, 0.0032, 6, 40),
+    new THREE.TorusGeometry(radius + 0.013, 0.0025, 6, 40),
     new THREE.MeshStandardMaterial({ color: 0x8a6743, roughness: 0.9 }),
   );
   twine.rotation.x = Math.PI / 2;
@@ -252,14 +273,6 @@ export function createCup({ insulated = false, x = 0, z = 0 } = {}) {
   bottom.renderOrder = 2;
   group.add(bottom);
 
-  const rim = new THREE.Mesh(
-    new THREE.TorusGeometry(0.12, 0.0035, 8, 48),
-    new THREE.MeshPhysicalMaterial({ color: 0xe8fbff, roughness: 0.1, metalness: 0.1, clearcoat: 1, transparent: true, opacity: 0.28 }),
-  );
-  rim.rotation.x = Math.PI / 2;
-  rim.position.y = 0.27;
-  group.add(rim);
-
   const water = new THREE.Mesh(new THREE.CylinderGeometry(0.108, 0.1, 0.17, 36), waterMat);
   water.position.y = 0.085;
   water.renderOrder = 1;
@@ -283,24 +296,11 @@ export function createCup({ insulated = false, x = 0, z = 0 } = {}) {
   surface.renderOrder = 3;
   group.add(surface);
 
-  // Thermometer, clamped at the rim, bulb under the surface.
+  // Thermometer, bulb under the water surface. No front clamp: the old
+  // bracket crossed the scale and blocked the reading.
   const thermo = createThermometer();
   thermo.position.set(0, THERMO_Y_IN_CUP, 0);
   group.add(thermo);
-
-  const clip = new THREE.Mesh(
-    new THREE.TorusGeometry(0.027, 0.0045, 8, 24),
-    new THREE.MeshStandardMaterial({ color: 0x93b2c4, metalness: 0.8, roughness: 0.28 }),
-  );
-  clip.rotation.x = Math.PI / 2;
-  clip.position.set(0, 0.28, 0);
-  group.add(clip);
-  const clipArm = new THREE.Mesh(
-    new THREE.BoxGeometry(0.075, 0.012, 0.016),
-    new THREE.MeshStandardMaterial({ color: 0x93b2c4, metalness: 0.8, roughness: 0.28 }),
-  );
-  clipArm.position.set(0.036, 0.28, 0);
-  group.add(clipArm);
 
   if (insulated) {
     const wrap = createCottonWrap(0.124, 0.25, 71);

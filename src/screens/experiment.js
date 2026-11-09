@@ -80,7 +80,7 @@ function renderBriefing(ctx, resetNote) {
           <div class="exp-vars">
             <div><span class="tag" style="background:rgba(255,122,89,.14);color:#ff9a7f">自變項</span><b>有沒有棉花</b></div>
             <div><span class="tag" style="background:rgba(34,184,214,.14);color:#8de8ff">因變項</span><b>水溫下降</b></div>
-            <div><span class="tag" style="background:rgba(95,227,161,.14);color:#9fffcf">不變項</span><b>杯、水量、起始水溫、室溫、時間、溫度計位置</b></div>
+            <div><span class="tag" style="background:rgba(95,227,161,.14);color:#9fffcf">不變項</span><b>同一款杯、水量、起始水溫、室溫、時間、溫度計位置</b></div>
           </div>
           <div class="procedure">
             <div><span>1</span>倒入 80 ml、45 °C 溫水</div>
@@ -303,6 +303,8 @@ function updateTable(ctx) {
   if (wrap) wrap.innerHTML = tableHtml(ctx.session);
   const pill = runtime?.el?.querySelector('#recorded-pill');
   if (pill) pill.textContent = `${(ctx.session.experiment.readings || []).length} / 6 讀數`;
+  const timeline = runtime?.el?.querySelector('#timeline');
+  if (timeline) timeline.innerHTML = timelineHtml(ctx.session);
 }
 
 function startLoop(ctx) {
@@ -437,7 +439,7 @@ function openMeasurement(ctx, targetMin, capturedAtMin) {
     world.setCupTemps(trueControl, trueCotton);
     world.setClock(capturedAtMin, `MEASURE ${targetMin}:00`);
     world.setCue('ready');
-    world.focusCup('control', angles.control, 0.9);
+    world.measurementView(angles.control, 0.9);
     world.setActiveCup('control');
   }
 
@@ -452,7 +454,7 @@ function openMeasurement(ctx, targetMin, capturedAtMin) {
   overlay.innerHTML = `
     <div class="read-stage" id="read-stage" tabindex="0" aria-label="Thermometer view. Drag to adjust eye height.">
       <div class="hud-card" style="left:24px;top:24px;max-width:240px">
-        <div class="row" style="gap:8px">${icon('eye', 15)}<b style="font-size:11px">拖動畫面調節眼睛高度</b></div>
+        <div class="row" style="gap:8px">${icon('eye', 15)}<b style="font-size:11px">拖動畫面或滑桿，調節眼睛高度</b></div>
         <p style="margin-top:3px">或使用滑桿。眼睛與液面水平時，讀數才準確。</p>
       </div>
       <div class="hud-card" style="left:24px;bottom:24px;max-width:250px">
@@ -562,7 +564,8 @@ function openMeasurement(ctx, targetMin, capturedAtMin) {
     if (cup === current.activeCup) return;
     current.activeCup = cup;
     if (current.cupStarted[cup] == null) current.cupStarted[cup] = performance.now();
-    ctx.world?.focusCup(cup, current.angles[cup], 0.55);
+    ctx.world?.setActiveCup(cup);
+    ctx.world?.setMeasurementElevation(current.angles[cup]);
     updateTabs();
     requestAnimationFrame(() => input?.focus());
   };
@@ -570,7 +573,7 @@ function openMeasurement(ctx, targetMin, capturedAtMin) {
   const setAngle = (deg) => {
     const cup = current.activeCup;
     current.angles[cup] = snapAngle(deg);
-    ctx.world?.setElevation(current.angles[cup]);
+    ctx.world?.setMeasurementElevation(current.angles[cup]);
     redraw();
   };
 
@@ -683,10 +686,9 @@ function cupTabHtml(cup, current) {
   const label = CUP_LABELS[cup];
   const draft = current.drafts[cup];
   const active = current.activeCup === cup;
-  const value = draft == null ? '' : `<span class="done-val">${draft.entered}<span> °C</span></span>`;
   return `<button class="cup-tab ${active ? 'active' : ''} ${draft ? 'done' : ''}" data-cup="${cup}">
     <span class="swatch ${cup}"></span>
-    <span style="min-width:0">${esc(label.zh)}<small style="display:block;font-size:9px;color:var(--muted);font-weight:700">${draft ? `眼睛 ${formatSigned(draft.angleDeg)}°` : label.en}</small></span>
+    <span style="min-width:0">${esc(label.zh)}<small style="display:block;font-size:9px;color:${draft ? 'var(--green)' : 'var(--muted)'};font-weight:800">${draft ? `${draft.entered} °C · 眼睛 ${formatSigned(draft.angleDeg)}°` : label.en}</small></span>
     ${draft ? `<span class="tick">${icon('check-circle', 16)}</span>` : ''}
   </button>`;
 }
