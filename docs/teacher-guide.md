@@ -2,6 +2,8 @@
 
 **P4 Science · 4LD2 動物的適應特徵 · Lesson 2 (Data tell us) · 30 minutes**
 
+Google login is required; there is no guest mode. Progress is auto-saved to Firestore, and the teacher dashboard shows both in-progress and completed sessions.
+
 The simulation is designed to be used **alongside** the existing 8-page worksheet, not to replace it. It supplies the hands-on reading practice that the lesson plan says was a bottleneck, the 0/3/6-minute data table, and a clean record of each pupil’s method and answers.
 
 ---
@@ -82,6 +84,7 @@ Open `teacher.html` and sign in with the teacher account.
 * **Reading %** — proportion of the six values that match the true temperature.
 * **Analysis / Variables %** — quiz accuracy.
 * **Training %** — the four practice rounds.
+* **Status / progress** — in-progress rows show `進行中 X%` and the last activity time; completed rows show `已完成`. Pupils can continue on another signed-in device.
 * **Row detail** — every training round and every cup reading with the entered value, actual value, angle, aligned flag, correct flag and capture time; then every answer with the correct answer.
 
 ### Suggested follow-up
@@ -111,7 +114,7 @@ The app’s analysis questions include the two key ideas (air is trapped in the 
 * **One device per pupil** gives the cleanest method data. Pairs can share, but the eye-angle record then belongs to whoever held the device.
 * Use **headphones** or mute the device; the app has a sound toggle.
 * If the 3D scene is slow, close other tabs. The 2D reading scope and all questions still work if WebGL is unavailable.
-* Pupils can leave and resume: progress is saved in the browser for the same Google account. The experiment restarts if it was interrupted, because the cooling curve depends on the clock.
+* Pupils can leave and resume: progress is saved locally and auto-saved to Firestore for the same Google account. If the experiment was interrupted after the 0- or 3-minute reading, the briefing resumes from the next time point; completed readings are kept. The teacher dashboard shows an in-progress row with a progress percentage.
 * The teacher dashboard is read-only. To clean up a test record, delete it in the Firestore console (teacher only).
 * `teacher.html?demo` is safe to show on the projector; it does not read or write Firebase.
 

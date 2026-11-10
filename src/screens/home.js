@@ -1,5 +1,5 @@
 import { icon, esc, openModal } from '../ui.js';
-import { sessionProgress } from '../state.js';
+import { sessionProgressPercent } from '../../logic.js';
 
 export function renderHome(ctx) {
   const p = ctx.player;
@@ -7,14 +7,14 @@ export function renderHome(ctx) {
   const classes = p.classCode || saved?.player?.classCode || '4C';
   const completed = !!saved?.completed;
   const resume = saved && !completed;
-  const stepsDone = saved ? sessionProgress(saved) : 0;
+  const progressPct = saved ? sessionProgressPercent(saved) : 0;
   const firstName = (p.name || '同學').split(' ')[0];
 
   const savedBlock = saved
     ? `<div class="card resume-card card-pad" style="margin-top:16px;padding:16px 18px">
          <div class="row-between" style="gap:12px;flex-wrap:wrap">
            <div>
-             <div class="pill ${completed ? 'pill-green' : 'pill-amber'}">${completed ? '已完成 · 可查看報告' : `進行中 · ${stepsDone}/4 步`}</div>
+             <div class="pill ${completed ? 'pill-green' : 'pill-amber'}">${completed ? '已完成 · 可查看報告' : `進行中 · ${progressPct}%`}</div>
              <div style="font-weight:900;margin-top:7px">${completed ? '你的實驗報告已準備好' : '繼續上次的北極任務'}</div>
              <div class="small muted">${esc(saved.player.classCode || '4C')} · 開始於 ${new Date(saved.startedAtMs).toLocaleDateString('zh-HK')}</div>
            </div>
@@ -43,7 +43,7 @@ export function renderHome(ctx) {
           <button class="btn btn-lg" data-home="start">${icon('play', 18)} 開始任務</button>
           <button class="btn btn-ghost btn-lg" data-home="how">${icon('info', 18)} 玩法說明</button>
         </div>
-        <p class="home-note">${icon('lock', 13)} ${ctx.guest ? '訪客模式：進度只在此裝置，不會上傳。' : `登入後，你的答案、方法和分數會記錄給老師。${ctx.dev ? ' · DEV 模式' : ''}`}</p>
+        <p class="home-note">${icon('lock', 13)} 登入後，你的答案、方法和分數會自動記錄給老師。${ctx.dev ? ' · DEV 模式' : ''}</p>
         ${savedBlock}
       </div>
 

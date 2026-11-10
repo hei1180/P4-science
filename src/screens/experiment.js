@@ -46,22 +46,21 @@ export function renderExperiment(ctx, opts = {}) {
     queueMicrotask(() => ctx.go('analysis'));
     return { html: '', topbar: 'analysis', stage: 'analysis' };
   }
-  let resetNote = '';
-  if (readings.length > 0 && readings.length < 6) {
-    session.experiment.measurements = [];
-    session.experiment.readings = [];
-    ctx.save();
-    resetNote = '上一次實驗未完成，已為你重新開始。';
-  }
+  const measurements = session.experiment.measurements || [];
+  const doneTargets = new Set(measurements.map((m) => m.targetMin));
+  const nextTarget = TARGETS.find((t) => !doneTargets.has(t)) ?? 0;
+  const partial = readings.length > 0 && readings.length < 6;
 
   if (opts.run || (runtime && runtime.active && runtime.started)) {
     return renderLive(ctx);
   }
-  return renderBriefing(ctx, resetNote);
+  return renderBriefing(ctx, { partial, nextTarget, doneTargets });
 }
 
-function renderBriefing(ctx, resetNote) {
+function renderBriefing(ctx, { partial, nextTarget, doneTargets }) {
   const session = ctx.session;
+  const doneText = [...doneTargets].sort((a, b) => a - b).map((t) => `${t} 分鐘`).join('、');
+  const resumeLabel = partial ? `繼續實驗（由 ${nextTarget} 分鐘）` : '開始實驗';
   const html = `
   <div class="wrap">
     <div class="exp-layout">
@@ -76,7 +75,7 @@ function renderBriefing(ctx, resetNote) {
           <p class="kicker">EXPERIMENT · FAIR TEST</p>
           <h2>棉花能保住熱嗎？</h2>
           <p class="lead" style="font-size:13.5px;margin:8px 0 14px">一杯清水是對照組；另一杯包一層棉花，模擬北極熊的皮毛。比較兩杯水的降溫幅度。</p>
-          ${resetNote ? `<div class="notice">${esc(resetNote)}</div>` : ''}
+          ${partial ? `<div class="notice">你已完成 ${esc(doneText)} 的讀數，數據已自動保存。由 <b>${nextTarget} 分鐘</b>繼續，不需要由 0 分鐘重新開始。</div>` : ''}
           <div class="exp-vars">
             <div><span class="tag" style="background:rgba(255,122,89,.14);color:#ff9a7f">自變項</span><b>有沒有棉花</b></div>
             <div><span class="tag" style="background:rgba(34,184,214,.14);color:#8de8ff">因變項</span><b>水溫下降</b></div>
@@ -88,8 +87,8 @@ function renderBriefing(ctx, resetNote) {
             <div><span>3</span>兩杯都不加蓋，插入溫度計</div>
             <div><span>4</span>在 0、3、6 分鐘記錄兩杯水溫</div>
           </div>
-          <button class="btn btn-lg btn-block" id="start-exp" style="margin-top:18px">${icon('play', 18)} 開始實驗</button>
-          <p class="tiny muted center" style="margin:10px 0 0">量度時計時會暫停。先讓眼睛水平，再讀數。離開會重新開始這次實驗。</p>
+          <button class="btn btn-lg btn-block" id="start-exp" style="margin-top:18px">${icon('play', 18)} ${resumeLabel}</button>
+          <p class="tiny muted center" style="margin:10px 0 0">量度時計時會暫停。先讓眼睛水平，再讀數。離開會自動保存，下次可繼續。</p>
         </div>
       </div>
     </div>
@@ -100,14 +99,15 @@ function renderBriefing(ctx, resetNote) {
     topbar: 'experiment',
     stage: 'experiment',
     mount(el) {
+      const at = partial ? nextTarget : 0;
       if (ctx.world) {
-        ctx.world.setCupTemps(SIM.startTempC, SIM.startTempC);
-        ctx.world.setClock(0, '');
+        ctx.world.setCupTemps(temperatureAt(at, false), temperatureAt(at, true));
+        ctx.world.setClock(at, '');
         ctx.world.setCue('idle');
       }
       el.querySelector('#start-exp')?.addEventListener('click', () => {
         ctx.sfx.click();
-        startRun(ctx);
+        startRun(ctx, partial ? nextTarget : 0);
       });
     },
   };
@@ -165,9 +165,10 @@ function renderLive(ctx) {
       if (!runtime || !runtime.active) runtime = createRuntime();
       runtime.el = el;
       const world = ctx.world;
+      const at = runtime.started ? (TARGETS[runtime.nextTargetIndex] ?? 0) : 0;
       if (world) {
-        world.setCupTemps(SIM.startTempC, SIM.startTempC);
-        world.setClock(0, '');
+        world.setCupTemps(temperatureAt(at, false), temperatureAt(at, true));
+        world.setClock(at, '');
         world.setCue('idle');
       }
       el.querySelector('#measure-btn')?.addEventListener('click', () => {
@@ -197,6 +198,11 @@ function renderLive(ctx) {
       } else {
         startLoop(ctx);
         updateHud(ctx);
+        setTimeout(() => {
+          if (!runtime || !runtime.active || runtime.measurementOpen) return;
+          const target = TARGETS[runtime.nextTargetIndex];
+          if (target != null) openMeasurement(ctx, target, target);
+        }, 350);
       }
 
       ctx.onCleanup(() => {
@@ -410,9 +416,16 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function startRun(ctx) {
+function startRun(ctx, resumeTarget = 0) {
   runtime = createRuntime();
-  ctx.go('experiment', { run: true });
+  if (resumeTarget > 0) {
+    runtime.started = true;
+    runtime.nextTargetIndex = TARGETS.indexOf(resumeTarget);
+    runtime.startedAt = performance.now() - resumeTarget * REAL_SEC_PER_MIN * 1000;
+    runtime.pausedTotal = 0;
+    runtime.paused = false;
+  }
+  ctx.go('experiment', { run: true, resumeTarget });
 }
 
 function openMeasurement(ctx, targetMin, capturedAtMin) {
@@ -661,16 +674,12 @@ function openMeasurement(ctx, targetMin, capturedAtMin) {
 
   overlay.querySelector('#abort-exp')?.addEventListener('click', async () => {
     const ok = await ctx.confirm({
-      title: '離開實驗？',
-      body: '這次實驗的讀數會清除，需要由 0 分鐘重新開始。訓練和之前的答案會保留。',
-      confirm: '離開實驗',
-      danger: true,
+      title: '離開這次量度？',
+      body: '已完成的 0 / 3 分鐘讀數會保留，這次未記錄的讀數會取消。下次可以由下一個時間點繼續。',
+      confirm: '離開量度',
+      danger: false,
     });
     if (!ok) return;
-    const session = ctx.session;
-    session.experiment.measurements = [];
-    session.experiment.readings = [];
-    ctx.save();
     runtime.cleanupMeasure?.();
     runtime = null;
     document.body.classList.remove('measuring');

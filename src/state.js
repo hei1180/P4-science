@@ -1,5 +1,4 @@
 import { APP_ID, SCHEMA_VERSION } from '../logic.js';
-import { ANALYSIS_QUESTIONS, VARIABLE_QUESTIONS } from '../questions.js';
 
 const SESSION_PREFIX = 'polarLab.session.v2.';
 const PROFILE_KEY = 'polarLab.profile.v1';
@@ -75,12 +74,4 @@ export function isSessionFinished(state) {
   return !!state?.completed;
 }
 
-export function sessionProgress(state) {
-  const steps = [
-    state?.training?.rounds?.length >= 4,
-    state?.experiment?.readings?.length >= 6,
-    state?.analysis?.answers?.length >= ANALYSIS_QUESTIONS.length,
-    state?.variables?.answers?.length >= VARIABLE_QUESTIONS.length,
-  ];
-  return steps.filter(Boolean).length;
-}
+

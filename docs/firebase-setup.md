@@ -1,8 +1,8 @@
 # Firebase setup · 北極熊保暖實驗室
 
-This app uses the **same Firebase project as the P1 maths games** so pupils have one Google sign-in. It writes to a new collection, `polarSessions`, and the teacher dashboard reads it.
+This app uses the **same Firebase project as the P1 maths games** so pupils have one Google sign-in. It writes to a new collection, `polarSessions`, and the teacher dashboard reads it — including in-progress records and their progress percentages.
 
-The app needs steps 1–4 before a real pupil can sign in and save. For a quick look without Firebase, use `/?dev` or `/?guest`; for the dashboard use `teacher.html?demo`.
+The app needs steps 1–4 before a real pupil can sign in and save. Google login is required for the experiment; there is no guest mode. For a quick local look without Firebase, use `/?dev` on localhost; for the dashboard use `teacher.html?demo`.
 
 ---
 
@@ -72,7 +72,7 @@ Copy the 64-character hash into the array. Then use the same address in the Fire
 The real web config is deliberately **not** in this repository.
 
 * **Deployed site:** the GitHub Actions workflow `.github/workflows/pages.yml` reads the repository secret **`FIREBASE_CONFIG`** (a JSON object with `apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`, `measurementId`) and writes `src/firebase-config.js` before deploying. The secret is already set for this repo; a fresh clone needs it recreated with `gh secret set FIREBASE_CONFIG` or GitHub → Settings → Secrets and variables → Actions.
-* **Local development:** copy `src/firebase-config.example.js` to `src/firebase-config.js`, fill in the values from Firebase Console → Project settings → Your apps, and never commit it. It is gitignored. `?dev` and `?guest` work without it; only real Google sign-in needs it.
+* **Local development:** copy `src/firebase-config.example.js` to `src/firebase-config.js`, fill in the values from Firebase Console → Project settings → Your apps, and never commit it. It is gitignored. Local `?dev` works without it; only real Google sign-in needs it.
 
 A Firebase **web API key is a public client identifier, not a secret** — the deployed JavaScript necessarily contains it. Real protection comes from:
 
@@ -110,7 +110,7 @@ The GitHub secret keeps the key out of the repository and git history; it does n
 
 ## 6. Privacy
 
-The record contains the pupil’s Google display name, email, class code, six temperatures, eye angles, capture times and quiz answers. It is visible only to the pupil and the teacher account under the rules. The teacher CSV should be stored in a restricted drive. The app does not use analytics or advertising.
+The record contains the pupil’s Google display name, email, class code, six temperatures, eye angles, capture times and quiz answers. While a session is in progress, a partial record (including a resume snapshot) is auto-saved to the same `polarSessions` document; it is visible only to the pupil and the teacher account under the rules. Completed sessions overwrite the partial record. The teacher CSV should be stored in a restricted drive. The app does not use analytics or advertising.
 
 The Firebase web config is injected from the encrypted `FIREBASE_CONFIG` repository secret during the Pages build. It is still visible in the browser bundle by design; security comes from the Firestore rules, Google sign-in, and the API-key restrictions described in step 4.
 

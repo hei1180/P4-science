@@ -5,6 +5,8 @@ import {
   onUser,
   completeRedirectSignIn,
   isTeacherEmail,
+  savePolarSession,
+  loadPolarSessionsForUser,
 } from './firebase.js';
 import { loadSession, saveSession, saveProfile, loadProfile } from './state.js';
 import { isMuted, setMuted, initAudio, sfx } from './audio.js';
@@ -15,6 +17,8 @@ import {
   newTrainingRound,
   buildMeasurement,
   buildReading,
+  buildSessionRecord,
+  sessionProgressPercent,
   trueReading,
 } from '../logic.js';
 import { ANALYSIS_QUESTIONS, VARIABLE_QUESTIONS } from '../questions.js';
@@ -27,8 +31,8 @@ import { renderQuiz } from './screens/quiz.js';
 import { renderResults } from './screens/results.js';
 
 const params = new URLSearchParams(location.search);
-const DEV = params.has('dev');
-const GUEST = params.has('guest');
+// Developer bypass is local-only; the public site always requires Google login.
+const DEV = params.has('dev') && ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
 
 const screenEl = document.getElementById('screen');
 const appEl = document.getElementById('app');
@@ -97,9 +101,6 @@ const ctx = {
   get dev() {
     return DEV;
   },
-  get guest() {
-    return !!state.player?.guest;
-  },
   get teacher() {
     return state.teacher;
   },
@@ -107,6 +108,10 @@ const ctx = {
   onCleanup,
   save() {
     if (state.session) saveSession(state.session);
+    scheduleAutoSave();
+  },
+  async flushAutoSave() {
+    await flushProgressQueue();
   },
   toast,
   sfx,
@@ -139,21 +144,14 @@ const ctx = {
     return next;
   },
   async leaveHome() {
-    const s = state.session;
-    if (state.screen === 'experiment' && s && !s.completed) {
+    if (state.screen === 'experiment' && state.session && !state.session.completed) {
       const ok = await confirmDialog({
         title: '離開實驗？',
-        body: '未完成的這次實驗會重新開始。已完成的訓練和答案會保留。',
-        confirm: '離開',
-        danger: true,
+        body: '已完成的讀數會自動保存，下次可以由此繼續，不會由 0 分鐘重新開始。',
+        confirm: '離開並保存',
+        danger: false,
       });
       if (!ok) return;
-      if (s.experiment.readings.length < 6) {
-        s.experiment.measurements = [];
-        s.experiment.readings = [];
-        s.experiment.runComplete = false;
-        saveSession(s);
-      }
     }
     go('home');
   },
@@ -170,26 +168,13 @@ const ctx = {
   async signIn() {
     await signIn();
   },
-  guestStart() {
-    enterGuest();
-  },
   openTeacher() {
     window.location.href = './teacher.html';
   },
 };
 
 // ---------- Auth and boot ----------
-function mockPlayer(kind = 'dev') {
-  if (kind === 'guest') {
-    return {
-      uid: 'guest-local',
-      name: '訪客 Guest',
-      email: '',
-      photoURL: '',
-      classCode: loadProfile().classCode || '4C',
-      guest: true,
-    };
-  }
+function mockPlayer() {
   return {
     uid: 'dev-local',
     name: 'Dev Bear',
@@ -200,20 +185,14 @@ function mockPlayer(kind = 'dev') {
   };
 }
 
-function enterGuest() {
-  state.player = mockPlayer('guest');
-  enterApp({ isGuest: true });
-}
-
-function enterApp({ isGuest = false } = {}) {
+async function enterApp() {
   if (state.entered) return;
   state.entered = true;
   if (!state.player) return;
   const profile = { ...loadProfile(), ...(state.player.classCode ? { classCode: state.player.classCode } : {}) };
   state.player.classCode = profile.classCode || '4C';
-  state.player.guest = isGuest || !!state.player.guest;
   isTeacherEmail(state.player.email).then((v) => {
-    state.teacher = (v || !!state.player.dev) && !state.player.guest;
+    state.teacher = (v || !!state.player.dev);
     if (state.screen !== 'boot') renderTopbar(state.topbarKey);
   });
 
@@ -224,6 +203,10 @@ function enterApp({ isGuest = false } = {}) {
   const saved = loadSession(state.player.uid);
   if (saved) {
     state.session = saved;
+  } else if (!DEV) {
+    screenEl.innerHTML = `<div class="wrap"><div class="card card-pad center"><div class="spinner" style="margin:0 auto 10px"></div><b>正在恢復你的進度…</b><div class="small muted" style="margin-top:5px">Checking for an unfinished session</div></div></div>`;
+    renderTopbar('home');
+    await restoreCloudProgress(state.player);
   }
 
   if (DEV && params.get('demo')) {
@@ -268,12 +251,8 @@ async function boot() {
   await completeRedirectSignIn();
 
   if (DEV) {
-    state.player = mockPlayer('dev');
+    state.player = mockPlayer();
     enterApp();
-    return;
-  }
-  if (GUEST) {
-    enterGuest();
     return;
   }
 
@@ -299,8 +278,66 @@ function stageForSession(s) {
   return 'results';
 }
 
+// ---------- Auto-save / cloud resume ----------
+let autoSaveTimer = null;
+let autoSaveChain = Promise.resolve();
+
+/** Write a compact in-progress record (plus the full session snapshot) to Firestore. */
+async function writeCloudProgress() {
+  const s = state.session;
+  if (!s || s.completed || DEV || !state.player?.uid) return;
+  try {
+    const record = buildSessionRecord(s, Date.now());
+    record.status = 'in-progress';
+    record.finishedAtMs = 0;
+    record.progressPercent = sessionProgressPercent(s);
+    record.updatedAtMs = Date.now();
+    record.stage = stageForSession(s);
+    record.resumeState = JSON.parse(JSON.stringify(s));
+    await savePolarSession(record);
+  } catch (err) {
+    console.warn('auto-save failed', err);
+  }
+}
+
+function scheduleAutoSave() {
+  if (DEV || !state.player?.uid || !state.session || state.session.completed) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    autoSaveChain = autoSaveChain.then(writeCloudProgress).catch((err) => console.warn('auto-save chain', err));
+  }, 1200);
+}
+
+async function flushProgressQueue() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = null;
+  await autoSaveChain;
+}
+
+/** Restore the latest unfinished session from Firestore when this browser has no local copy. */
+async function restoreCloudProgress(player) {
+  if (!player?.uid || DEV) return false;
+  try {
+    const rows = await loadPolarSessionsForUser(player.uid);
+    const candidates = rows
+      .filter((r) => r.status === 'in-progress' && r.resumeState?.sessionId)
+      .sort((a, b) => (b.updatedAtMs || 0) - (a.updatedAtMs || 0));
+    if (!candidates.length) return false;
+    const s = candidates[0].resumeState;
+    s.completed = false;
+    state.session = s;
+    saveSession(s);
+    toast('已恢復上次未完成的進度', 'success', 3200);
+    return true;
+  } catch (err) {
+    console.warn('cloud progress restore failed', err);
+    return false;
+  }
+}
+
 function startNew(classCode) {
   const code = String(classCode || state.player.classCode || '4C').trim().slice(0, 20) || '4C';
+  const previous = state.session;
   state.player.classCode = code;
   saveProfile({ classCode: code });
   state.session = createSession({
@@ -309,9 +346,13 @@ function startNew(classCode) {
     email: state.player.email,
     classCode: code,
   });
-  state.session.guest = state.player.guest;
+  // Starting again from an unfinished local session reuses its document id,
+  // so the teacher sees one progress row rather than an orphaned duplicate.
+  if (previous && !previous.completed && previous.player?.uid === state.player.uid && previous.sessionId) {
+    state.session.sessionId = previous.sessionId;
+  }
   state.session.dev = DEV;
-  saveSession(state.session);
+  ctx.save();
   go('training');
 }
 
@@ -378,7 +419,7 @@ function renderTopbar(screen) {
   const teacherLink = state.teacher
     ? `<a class="icon-btn" href="./teacher.html" title="教師專區 Teacher" aria-label="Teacher">${icon('teacher', 19)}</a>`
     : '';
-  const guestBadge = state.player.guest ? '<span class="dev-badge">GUEST</span>' : DEV ? '<span class="dev-badge">DEV</span>' : '';
+  const devBadge = DEV ? '<span class="dev-badge">DEV</span>' : '';
   top.innerHTML = `
     <div class="brand">
       <div class="brand-mark">${icon('snowflake', 24)}</div>
@@ -391,9 +432,9 @@ function renderTopbar(screen) {
       <button class="icon-btn" data-top="home" title="主頁 Home" aria-label="Home">${icon('home', 19)}</button>
       <div class="user-chip" title="${esc(state.player.email || name)}">
         <span class="avatar">${avatar}</span>
-        <span>${esc(name.split(' ')[0])}</span>${guestBadge}
+        <span>${esc(name.split(' ')[0])}</span>${devBadge}
       </div>
-      ${state.player.guest || DEV ? '' : `<button class="icon-btn" data-top="signout" title="登出 Sign out" aria-label="Sign out">${icon('logout', 18)}</button>`}
+      ${DEV ? '' : `<button class="icon-btn" data-top="signout" title="登出 Sign out" aria-label="Sign out">${icon('logout', 18)}</button>`}
     </div>`;
   top.querySelector('[data-top="sound"]').addEventListener('click', () => ctx.toggleSound());
   top.querySelector('[data-top="home"]').addEventListener('click', () => ctx.leaveHome());

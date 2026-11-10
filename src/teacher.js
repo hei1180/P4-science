@@ -138,8 +138,9 @@ function renderDashboard() {
     ${errorBlock}
     <div class="teacher-kpis">
       <div class="kpi"><b>${kpis.students}</b><span>Students</span><small>不同學生帳戶</small></div>
-      <div class="kpi"><b>${kpis.sessions}</b><span>Sessions</span><small>完成的實驗</small></div>
-      <div class="kpi"><b>${kpis.overall}%</b><span>Overall</span><small>平均總分</small></div>
+      <div class="kpi"><b>${kpis.sessions}</b><span>Sessions</span><small>所有記錄</small></div>
+      <div class="kpi"><b>${kpis.inProgress}</b><span>In progress</span><small>進行中</small></div>
+      <div class="kpi"><b>${kpis.overall}%</b><span>Overall</span><small>完成實驗平均</small></div>
       <div class="kpi"><b>${kpis.eye}%</b><span>Eye level</span><small>眼睛水平讀數</small></div>
       <div class="kpi"><b>${kpis.onTime}%</b><span>On time</span><small>3 / 6 分鐘準時</small></div>
       <div class="kpi"><b>${kpis.variables}%</b><span>Variables</span><small>變項挑戰平均</small></div>
@@ -161,7 +162,7 @@ function renderDashboard() {
 
     <div class="teacher-table-wrap">
       ${rows ? `<table class="teacher-table">
-        <thead><tr><th>日期</th><th>姓名</th><th>班別</th><th>總分</th><th>溫度計</th><th>眼睛水平</th><th>準時</th><th>分析</th><th>變項</th><th>星</th><th>時長</th></tr></thead>
+        <thead><tr><th>日期</th><th>狀態</th><th>姓名</th><th>班別</th><th>總分</th><th>溫度計</th><th>眼睛水平</th><th>準時</th><th>分析</th><th>變項</th><th>星</th><th>時長</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>` : `<div class="teacher-empty"><b>${all.length ? '沒有符合篩選的記錄' : '未有學生記錄'}</b><span>${all.length ? '試試清除搜尋或選擇其他班別。' : '學生完成實驗後，記錄會自動出現在這裡。'}</span></div>`}
     </div>
@@ -180,7 +181,7 @@ function filterSessions(list) {
   });
   if (state.sort === 'score') out = out.slice().sort((a, b) => (b.overallAccuracy || 0) - (a.overallAccuracy || 0));
   else if (state.sort === 'name') out = out.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'zh-HK'));
-  else out = out.slice().sort((a, b) => (b.finishedAtMs || 0) - (a.finishedAtMs || 0));
+  else out = out.slice().sort((a, b) => (b.updatedAtMs || b.finishedAtMs || 0) - (a.updatedAtMs || a.finishedAtMs || 0));
   return out;
 }
 
@@ -232,23 +233,30 @@ function rowHtml(s) {
   const sc = s.scores || {};
   const eye = Math.round((((sc.trainingMethod ?? 0) + (sc.expMethod ?? 0)) / 2) * 10) / 10;
   const overall = s.overallAccuracy ?? sc.overall ?? 0;
+  const inProgress = s.status === 'in-progress';
+  const progress = Math.round(s.progressPercent ?? 0);
+  const when = s.updatedAtMs || s.finishedAtMs;
   return `<tr data-session="${esc(s.id || s.sessionId)}">
-    <td>${formatDate(s.finishedAtMs)}</td>
+    <td>${formatDate(when)}</td>
+    <td>${inProgress ? `<span class="status-pill status-progress">進行中 ${progress}%</span>` : `<span class="status-pill status-done">已完成</span>`}</td>
     <td class="name-cell">${esc(s.name || '—')}<div class="tiny" style="color:#8aa6b5">${esc(s.email || '')}</div></td>
     <td>${esc(s.classCode || '—')}</td>
-    <td class="score-cell"><span class="mini-bar"><i style="width:${Math.max(0, Math.min(100, overall))}%"></i></span>${overall}%</td>
+    <td class="score-cell">${inProgress ? '—' : `<span class="mini-bar"><i style="width:${Math.max(0, Math.min(100, overall))}%"></i></span>${overall}%`}</td>
     <td>${sc.trainingReading ?? '—'}%</td>
     <td>${eye}%</td>
     <td>${sc.expTime ?? '—'}%</td>
     <td>${sc.analysis ?? '—'}%</td>
     <td>${sc.variables ?? '—'}%</td>
-    <td style="color:#c08a12">${stars(s.stars ?? starsFor(overall), 13)}</td>
+    <td style="color:#c08a12">${inProgress ? '—' : stars(s.stars ?? starsFor(overall), 13)}</td>
     <td>${formatDuration(s.durationSec)}</td>
   </tr>`;
 }
 
 function showDetail(s) {
   const sc = s.scores || {};
+  const inProgress = s.status === 'in-progress';
+  const progress = Math.round(s.progressPercent ?? 0);
+  const when = s.updatedAtMs || s.finishedAtMs;
   const readings = s.readings || [];
   const measurements = s.measurements || [];
   const training = s.training || [];
@@ -283,16 +291,17 @@ function showDetail(s) {
   const { el: modal, close } = openModal(`
     <div class="row-between" style="gap:12px;flex-wrap:wrap">
       <div><p class="kicker" style="margin-bottom:6px">STUDENT REPORT</p><h2 style="margin:0">${esc(s.name || '—')} <span class="muted" style="font-size:14px">${esc(s.classCode || '')}</span></h2>
-      <p class="small muted" style="margin:6px 0 0">${formatDate(s.finishedAtMs)} · 時長 ${formatDuration(s.durationSec)} · ${esc(s.email || '')}</p></div>
-      <div style="text-align:right"><div style="font-size:38px;font-weight:900;color:#08243a;line-height:1">${s.overallAccuracy ?? sc.overall ?? 0}%</div><div class="tiny" style="color:#7b98a8">OVERALL</div></div>
+      <div style="margin-top:6px">${inProgress ? `<span class="status-pill status-progress">進行中 ${progress}%</span>` : `<span class="status-pill status-done">已完成</span>`}</div>
+      <p class="small muted" style="margin:6px 0 0">${formatDate(when)} · 時長 ${formatDuration(s.durationSec)} · ${esc(s.email || '')}</p></div>
+      <div style="text-align:right"><div style="font-size:38px;font-weight:900;color:#08243a;line-height:1">${inProgress ? progress : (s.overallAccuracy ?? sc.overall ?? 0)}%</div><div class="tiny" style="color:#7b98a8">${inProgress ? 'PROGRESS' : 'OVERALL'}</div></div>
     </div>
     <div class="detail-grid" style="margin-top:16px">
       <div class="detail-box"><span>Eye level</span><b>${eyePct}%</b><small>平均角度 ${angleAvg}°</small></div>
       <div class="detail-box"><span>On time</span><b>${timePct}%</b><small>3 / 6 分鐘</small></div>
-      <div class="detail-box"><span>Reading</span><b>${sc.expReading ?? '—'}%</b><small>6 個讀數</small></div>
-      <div class="detail-box"><span>Analysis</span><b>${sc.analysis ?? '—'}%</b><small>10 題</small></div>
-      <div class="detail-box"><span>Variables</span><b>${sc.variables ?? '—'}%</b><small>8 題</small></div>
-      <div class="detail-box"><span>Training</span><b>${sc.training ?? '—'}%</b><small>眼睛水平練習</small></div>
+      <div class="detail-box"><span>Reading</span><b>${sc.expReading ?? '—'}%</b><small>${readings.length} / 6 讀數</small></div>
+      <div class="detail-box"><span>Analysis</span><b>${sc.analysis ?? '—'}%</b><small>${(s.analysis || []).length} / 10 題</small></div>
+      <div class="detail-box"><span>Variables</span><b>${sc.variables ?? '—'}%</b><small>${(s.variables || []).length} / 8 題</small></div>
+      <div class="detail-box"><span>Training</span><b>${sc.training ?? '—'}%</b><small>${training.length} / 4 回合</small></div>
     </div>
     <h3 style="font-size:15px;margin:18px 0 4px">實驗讀數 / Experimental readings</h3>
     <div style="overflow-x:auto"><table class="detail-table"><thead><tr><th>時間</th><th>杯</th><th>記錄</th><th>輸入</th><th>實際</th><th>眼睛</th><th>水平</th><th>正確</th><th>準時</th></tr></thead><tbody>${readingRows || '<tr><td colspan="9">沒有讀數</td></tr>'}</tbody></table></div>
@@ -327,23 +336,26 @@ async function loadSessions() {
 
 function computeKpis(list) {
   const students = new Set(list.map((s) => s.uid).filter(Boolean)).size;
+  const completed = list.filter((s) => s.status !== 'in-progress');
+  const inProgress = list.length - completed.length;
   const avg = (arr) => (arr.length ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : 0);
-  const overall = avg(list.map((s) => s.overallAccuracy ?? s.scores?.overall ?? 0).filter(Number.isFinite));
+  const overall = avg(completed.map((s) => s.overallAccuracy ?? s.scores?.overall ?? 0).filter(Number.isFinite));
   const readings = list.flatMap((s) => s.readings || []);
   const eye = readings.length ? Math.round((readings.filter((r) => r.aligned).length / readings.length) * 100) : 0;
   const timed = list.flatMap((s) => (s.measurements || []).filter((m) => m.targetMin > 0));
   const onTime = timed.length ? Math.round((timed.filter((m) => m.timeOk).length / timed.length) * 100) : 0;
-  const variables = avg(list.map((s) => s.scores?.variables ?? 0).filter(Number.isFinite));
-  return { students, sessions: list.length, overall, eye, onTime, variables };
+  const variables = avg(completed.map((s) => s.scores?.variables ?? 0).filter(Number.isFinite));
+  return { students, sessions: list.length, inProgress, overall, eye, onTime, variables };
 }
 
 function exportSessionsCsv() {
   const list = filterSessions(state.sessions);
-  const headers = ['date', 'name', 'class', 'email', 'overall', 'trainingReading', 'trainingMethod', 'expReading', 'expMethod', 'expTime', 'analysis', 'variables', 'stars', 'durationSec', 'uid', 'sessionId'];
+  const headers = ['date', 'status', 'progressPercent', 'name', 'class', 'email', 'overall', 'trainingReading', 'trainingMethod', 'expReading', 'expMethod', 'expTime', 'analysis', 'variables', 'stars', 'durationSec', 'uid', 'sessionId'];
   const rows = list.map((s) => {
     const sc = s.scores || {};
     return [
-      new Date(s.finishedAtMs || 0).toISOString(),
+      new Date(s.updatedAtMs || s.finishedAtMs || 0).toISOString(),
+      s.status || 'complete', s.progressPercent ?? 100,
       s.name, s.classCode, s.email, s.overallAccuracy ?? sc.overall ?? 0,
       sc.trainingReading, sc.trainingMethod, sc.expReading, sc.expMethod, sc.expTime, sc.analysis, sc.variables,
       s.stars, s.durationSec, s.uid, s.sessionId,
@@ -354,13 +366,13 @@ function exportSessionsCsv() {
 
 function exportReadingsCsv() {
   const list = filterSessions(state.sessions);
-  const headers = ['date', 'name', 'class', 'targetMin', 'cup', 'capturedAtMin', 'entered', 'trueTemp', 'angleDeg', 'aligned', 'correct', 'timeOk'];
+  const headers = ['date', 'status', 'name', 'class', 'targetMin', 'cup', 'capturedAtMin', 'entered', 'trueTemp', 'angleDeg', 'aligned', 'correct', 'timeOk'];
   const rows = [];
   for (const s of list) {
     for (const r of s.readings || []) {
       const m = (s.measurements || []).find((x) => x.targetMin === r.targetMin);
       rows.push([
-        new Date(s.finishedAtMs || 0).toISOString(), s.name, s.classCode, r.targetMin, r.cup,
+        new Date(s.updatedAtMs || s.finishedAtMs || 0).toISOString(), s.status || 'complete', s.name, s.classCode, r.targetMin, r.cup,
         r.capturedAtMin, r.entered, r.trueTemp, r.angleDeg, r.aligned ? 1 : 0, r.correct ? 1 : 0, m?.timeOk ? 1 : 0,
       ]);
     }
@@ -370,7 +382,7 @@ function exportReadingsCsv() {
 
 function sessionCsvRow(s) {
   const sc = s.scores || {};
-  return [new Date(s.finishedAtMs || 0).toISOString(), s.name, s.classCode, s.email, s.overallAccuracy ?? sc.overall ?? 0, sc.trainingReading, sc.trainingMethod, sc.expReading, sc.expMethod, sc.expTime, sc.analysis, sc.variables, s.stars, s.durationSec, s.uid, s.sessionId];
+  return [new Date(s.updatedAtMs || s.finishedAtMs || 0).toISOString(), s.status || 'complete', s.progressPercent ?? 100, s.name, s.classCode, s.email, s.overallAccuracy ?? sc.overall ?? 0, sc.trainingReading, sc.trainingMethod, sc.expReading, sc.expMethod, sc.expTime, sc.analysis, sc.variables, s.stars, s.durationSec, s.uid, s.sessionId];
 }
 
 function downloadCsv(filename, rows) {
@@ -430,6 +442,7 @@ function demoRecords() {
     { name: '林可兒', overall: 58, eye: 33, time: 0, reading: 50, analysis: 60, variables: 75 },
     { name: '張家朗', overall: 88, eye: 100, time: 100, reading: 83, analysis: 90, variables: 88 },
     { name: '吳卓穎', overall: 47, eye: 33, time: 0, reading: 50, analysis: 50, variables: 50 },
+    { name: '梁思穎', overall: 0, eye: 50, time: 50, reading: 50, analysis: 0, variables: 0, inProgress: true, progress: 45 },
   ];
   const now = Date.now();
   return specs.map((spec, idx) => {
@@ -509,6 +522,7 @@ function demoRecords() {
         ms: 7000 + i * 250, correctAnswer: canonical(q),
       });
     });
+    const inProgress = !!spec.inProgress;
     return {
       id: `demo-${idx}`,
       sessionId: `demo-${idx}`,
@@ -516,17 +530,20 @@ function demoRecords() {
       name: spec.name,
       email: `${spec.name}@demo.hk`,
       classCode: '4C',
-      finishedAtMs,
+      status: inProgress ? 'in-progress' : 'complete',
+      progressPercent: inProgress ? spec.progress : 100,
+      updatedAtMs: finishedAtMs,
+      finishedAtMs: inProgress ? 0 : finishedAtMs,
       durationSec: 1100 + idx * 27,
-      overallAccuracy: spec.overall,
-      stars: scores.stars,
+      overallAccuracy: inProgress ? 0 : spec.overall,
+      stars: inProgress ? 0 : scores.stars,
       scores,
-      training,
-      measurements,
-      readings,
-      analysis: answers.slice(0, ANALYSIS_QUESTIONS.length),
-      variables: answers.slice(ANALYSIS_QUESTIONS.length),
-      answers,
+      training: inProgress ? training.slice(0, 2) : training,
+      measurements: inProgress ? measurements.slice(0, 1) : measurements,
+      readings: inProgress ? readings.slice(0, 2) : readings,
+      analysis: inProgress ? [] : answers.slice(0, ANALYSIS_QUESTIONS.length),
+      variables: inProgress ? [] : answers.slice(ANALYSIS_QUESTIONS.length),
+      answers: inProgress ? [] : answers,
     };
   });
 }

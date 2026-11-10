@@ -3,7 +3,7 @@
 A polished 3D science simulation for **P4 Science · 4LD2 動物的適應特徵**:
 *How does the fur of a polar bear keep it warm?*
 
-Students use a large demonstration thermometer at eye level, run the cotton-vs-bare-cup experiment over simulated 0 / 3 / 6 minutes, record both cups in a data table, analyse the class data, and complete a quiz on **自變項 / 因變項 / 不變項**. Google sign-in and Firestore store every reading, method check and answer for the teacher.
+Students use a large demonstration thermometer at eye level, run the cotton-vs-bare-cup experiment over simulated 0 / 3 / 6 minutes, record both cups in a data table, analyse the class data, and complete a quiz on **自變項 / 因變項 / 不變項**. **Google sign-in is required**; progress is auto-saved to Firestore so a pupil can continue on the same device (or another signed-in device) and the teacher can see who is still working.
 
 **Live site:** https://hei1180.github.io/P4-science/
 
@@ -21,7 +21,7 @@ python3 -m http.server 8000
 
 Do **not** open `index.html` with `file://` — the GLB model and Firebase sign-in both need a server.
 
-For local Google sign-in, copy `src/firebase-config.example.js` to `src/firebase-config.js` and fill in the Firebase web config. That file is **gitignored**. The deployed GitHub Pages build injects the same config from the encrypted `FIREBASE_CONFIG` repository secret; `?dev` and `?guest` work without it.
+For local Google sign-in, copy `src/firebase-config.example.js` to `src/firebase-config.js` and fill in the Firebase web config. That file is **gitignored**. The deployed GitHub Pages build injects the same config from the encrypted `FIREBASE_CONFIG` repository secret; `?dev` (localhost only) works without it.
 
 ### Preview routes
 
@@ -33,7 +33,6 @@ For local Google sign-in, copy `src/firebase-config.example.js` to `src/firebase
 | `/?dev&demo=analysis` | Training + experiment complete, open the data briefing |
 | `/?dev&demo=variables` | Analysis complete, open the variables challenge |
 | `/?dev&demo=results` | Complete report with sample data |
-| `/?guest` | Guest mode (no Firebase save) |
 | `http://localhost:8000/teacher.html?demo` | Teacher dashboard with 8 sample students |
 
 Dev-only helpers are on `window.__polar` (`go()`, `seed()`, `session`, `world`). The experiment has a small `⏭` button in dev mode to jump to the next measurement.
@@ -47,7 +46,7 @@ Dev-only helpers are on `window.__polar` (`go()`, `seed()`, `session`, `world`).
 3. **分析 · Data tells us** — class data table and chart, then 10 questions: compare cooling, calculate drops, check that no cup rose above 45 °C, build a CER explanation, and identify where air is trapped in fur.
 4. **變項 · Variables challenge** — a short concept refresher, then 8 questions on independent, dependent and controlled variables, including a definition match, multi-select controls, a spot-the-unfair-test and a transfer scenario.
 
-The final report shows overall %, component bars, earned badges, every measurement’s method flags and a full answer review. It is written to Firestore `polarSessions/{sessionId}`.
+Progress is auto-saved after each training round, measurement and answer into `polarSessions/{sessionId}` with `status: 'in-progress'`. If a pupil leaves the experiment after 0 or 3 minutes, the briefing offers to continue from the next measurement. The final report overwrites the same record with `status: 'complete'`, overall %, component bars, badges, every measurement’s method flags and a full answer review.
 
 ---
 
@@ -55,8 +54,8 @@ The final report shows overall %, component bars, earned badges, every measureme
 
 `teacher.html` signs in with the teacher Google account and reads every `polarSessions` record.
 
-* KPIs: students, sessions, average overall, eye-level %, on-time %, variables %.
-* Table: date, name, class, overall, thermometer reading, eye level, on-time, analysis, variables, stars, duration.
+* KPIs: students, sessions, **in progress**, average overall, eye-level %, on-time %, variables %.
+* Table: date, **status/progress**, name, class, overall, thermometer reading, eye level, on-time, analysis, variables, stars, duration. In-progress rows show an amber `進行中 X%` badge and partial data; completed rows show `已完成`.
 * Row detail: per-reading table (entered vs actual, angle, aligned, correct, on-time), training rounds and every quiz answer.
 * **Sessions CSV** and **Readings CSV** include a UTF-8 BOM so Excel opens Chinese correctly.
 * `?demo` shows sample data without Firebase; useful for a quick look before the lesson.
@@ -96,6 +95,9 @@ polarSessions/{sessionId}
   startedAtMs, finishedAtMs, durationSec, createdAt
   scores: { trainingReading, trainingMethod, expReading, expMethod,
             expTime, analysis, variables, overall, stars }
+  status: 'in-progress' | 'complete'
+  progressPercent, updatedAtMs
+  resumeState (in-progress only; full snapshot for cloud resume)
   overallAccuracy, stars, badges[]
   training[]      — 4 eye-level rounds
   measurements[]  — 0 / 3 / 6 min capture times and time flags

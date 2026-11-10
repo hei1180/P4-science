@@ -725,7 +725,7 @@ p { line-height: 1.62; }
 .teacher-head h1 { font-size: 24px; color: var(--ink); }
 .teacher-head p { margin: 3px 0 0; font-size: 11px; color: var(--ink-soft); }
 .teacher-head .spacer { flex: 1; }
-.teacher-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
+.teacher-kpis { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 16px; }
 .kpi { background: #fff; border: 1px solid rgba(8,36,58,.1); border-radius: 15px; padding: 13px 14px; box-shadow: 0 8px 22px rgba(8,36,58,.05); }
 .kpi b { display: block; font-size: 25px; font-weight: 900; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
 .kpi span { display: block; margin-top: 6px; font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); font-weight: 900; }
@@ -1121,3 +1121,11 @@ body.measuring .read-overlay { background: linear-gradient(90deg, rgba(3,12,20,.
   .quiz-data-table { font-size: 10.5px; }
   .quiz-data-table .val { font-size: 13px; }
 }
+
+/* Teacher dashboard progress status */
+.status-pill {
+  display: inline-flex; align-items: center; padding: 3px 7px; border-radius: 999px;
+  font-size: 9px; font-weight: 900; white-space: nowrap; line-height: 1.4;
+}
+.status-progress { background: #fff6dd; color: #8a5b00; border: 1px solid #f2d285; }
+.status-done { background: #e9fff5; color: #128354; border: 1px solid #b9e9d1; }

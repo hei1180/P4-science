@@ -66,8 +66,6 @@ export function renderResults(ctx) {
     .join('');
 
   const status = saveStatusHtml(s);
-  const guest = ctx.guest;
-
   const html = `
   <div class="wrap">
     <div class="paper card card-pad" style="position:relative;overflow:hidden">
@@ -131,7 +129,7 @@ export function renderResults(ctx) {
           ${ctx.teacher ? `<a class="btn btn-ghost btn-sm" href="./teacher.html">${icon('teacher', 15)} 教師專區</a>` : ''}
         </div>
       </div>
-      <p class="tiny" style="color:var(--ink-soft);margin:10px 0 0">儲存內容：姓名、班別、Google 電郵、六個實驗讀數、眼睛角度、記錄時間、每題答案與分數。${guest ? '訪客模式不會上傳。' : ''}</p>
+      <p class="tiny" style="color:var(--ink-soft);margin:10px 0 0">儲存內容：姓名、班別、Google 電郵、六個實驗讀數、眼睛角度、記錄時間、每題答案與分數。</p>
     </div>
   </div>`;
 
@@ -161,7 +159,7 @@ export function renderResults(ctx) {
       };
       updateStatus();
 
-      if (!guest && !ctx.dev && !s.savedRecordId) {
+      if (!ctx.dev && !s.savedRecordId) {
         if (!s.saveError) attemptSave(ctx, updateStatus);
         else updateStatus();
       }
@@ -187,6 +185,7 @@ export function renderResults(ctx) {
 async function attemptSave(ctx, updateStatus) {
   const s = ctx?.session;
   if (!s || saving || s.savedRecordId) return;
+  await ctx.flushAutoSave?.();
   saving = true;
   s.saveError = '';
   updateStatus?.();
@@ -208,9 +207,6 @@ async function attemptSave(ctx, updateStatus) {
 }
 
 function saveStatusHtml(s) {
-  if (s.player?.uid === 'guest-local') {
-    return `<div class="save-status"><span class="dot"></span>訪客模式：這份報告只在此裝置顯示，沒有上傳。</div>`;
-  }
   if (s.player?.uid === 'dev-local') {
     return `<div class="save-status ok"><span class="dot"></span>DEV 模式：報告只儲存在此裝置。正式課堂會寫入 Firebase。</div>`;
   }

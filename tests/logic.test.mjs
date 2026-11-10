@@ -21,6 +21,7 @@ import {
   buildSessionRecord,
   scoreAnswer,
   answerRecord,
+  sessionProgressPercent,
 } from '../logic.js';
 import { ANALYSIS_QUESTIONS, VARIABLE_QUESTIONS, validateBank } from '../questions.js';
 
@@ -78,6 +79,19 @@ test('time grading and clock formatting', () => {
   assert.equal(clockFromMinutes(3.25), '3:15');
   assert.equal(clockFromMinutes(6), '6:00');
   assert.equal(clockFromMinutes(6.999), '6:59');
+});
+
+test('progress percentages follow the four stages', () => {
+  const s = createSession({ uid: 'u1', name: 'A', email: 'a@b.c', classCode: '4C' }, 1000);
+  assert.equal(sessionProgressPercent(s), 0);
+  s.training.rounds = [1, 2, 3, 4].map((round) => ({ round, correct: true, aligned: true }));
+  assert.equal(sessionProgressPercent(s), 25);
+  s.experiment.readings = Array.from({ length: 6 }, (_, i) => ({ cup: i % 2 ? 'cotton' : 'control', targetMin: 0 }));
+  assert.equal(sessionProgressPercent(s), 60);
+  s.analysis.answers = Array.from({ length: 10 }, () => ({ correct: true }));
+  assert.equal(sessionProgressPercent(s), 80);
+  s.variables.answers = Array.from({ length: 8 }, () => ({ correct: true }));
+  assert.equal(sessionProgressPercent(s), 100);
 });
 
 test('stars thresholds', () => {
@@ -144,6 +158,9 @@ test('session record is Firestore-safe and complete', () => {
   assert.equal(rec.durationSec, 4);
   assert.equal(rec.readings.length, 1);
   assert.equal(rec.answers.length, 1);
+  assert.equal(rec.status, 'complete');
+  assert.equal(rec.progressPercent, 100);
+  assert.ok(rec.updatedAtMs >= 5000);
   assert.equal(JSON.stringify(rec).includes('undefined'), false);
   assert.doesNotThrow(() => JSON.parse(JSON.stringify(rec)));
 });

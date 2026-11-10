@@ -95,6 +95,19 @@ export function formatSigned(n, digits = 0) {
   return `${v > 0 ? '+' : ''}${v.toFixed(digits)}`;
 }
 
+export function sessionProgressPercent(state) {
+  const rounds = state?.training?.rounds?.length || 0;
+  const readings = state?.experiment?.readings?.length || 0;
+  const analysis = state?.analysis?.answers?.length || 0;
+  const variables = state?.variables?.answers?.length || 0;
+  const pct =
+    (Math.min(4, rounds) / 4) * 25 +
+    (Math.min(6, readings) / 6) * 35 +
+    (Math.min(10, analysis) / 10) * 20 +
+    (Math.min(8, variables) / 8) * 20;
+  return Math.round(pct);
+}
+
 export function starsFor(overallPct) {
   if (overallPct >= 90) return 3;
   if (overallPct >= 70) return 2;
@@ -198,8 +211,8 @@ export function createSession(player, now = Date.now()) {
     startedAtMs: now,
     stage: 'home',
     player: {
-      uid: String(player.uid || 'guest'),
-      name: String(player.name || 'Guest').slice(0, 80),
+      uid: String(player.uid || 'anonymous'),
+      name: String(player.name || 'Student').slice(0, 80),
       email: String(player.email || '').slice(0, 200),
       classCode: String(player.classCode || '').slice(0, 20),
     },
@@ -275,6 +288,9 @@ export function buildSessionRecord(state, now = Date.now()) {
     scores,
     overallAccuracy: scores.overall ?? 0,
     stars: scores.stars,
+    status: 'complete',
+    progressPercent: 100,
+    updatedAtMs: now,
     badges: badges.map((b) => ({ id: b.id, earned: !!b.earned })),
     training: (state.training?.rounds || []).map((r) => ({
       round: r.round,

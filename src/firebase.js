@@ -17,8 +17,7 @@ import {
   doc,
   getDocs,
   query,
-  orderBy,
-  limit,
+  where,
   serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 
@@ -34,7 +33,7 @@ try {
     firebaseConfig = cfg;
   }
 } catch (err) {
-  console.warn('Firebase config not installed. Google sign-in is disabled; ?dev and ?guest still work.');
+  console.warn('Firebase config not installed. Google sign-in is disabled; local ?dev still works.');
 }
 
 export const app = firebaseConfig ? initializeApp(firebaseConfig) : null;
@@ -141,7 +140,17 @@ export async function savePolarSession(record) {
 
 export async function loadPolarSessions(max = 400) {
   if (!db) throw new Error(NOT_CONFIGURED);
-  const q = query(collection(db, 'polarSessions'), orderBy('finishedAtMs', 'desc'), limit(max));
+  const snap = await getDocs(collection(db, 'polarSessions'));
+  const rows = [];
+  snap.forEach((docSnap) => rows.push({ id: docSnap.id, ...docSnap.data() }));
+  rows.sort((a, b) => (b.updatedAtMs || b.finishedAtMs || 0) - (a.updatedAtMs || a.finishedAtMs || 0));
+  return rows.slice(0, max);
+}
+
+/** A pupil's own records, used only to restore unfinished progress on a new device. */
+export async function loadPolarSessionsForUser(uid) {
+  if (!db) throw new Error(NOT_CONFIGURED);
+  const q = query(collection(db, 'polarSessions'), where('uid', '==', uid));
   const snap = await getDocs(q);
   const rows = [];
   snap.forEach((docSnap) => rows.push({ id: docSnap.id, ...docSnap.data() }));
