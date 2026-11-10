@@ -95,7 +95,7 @@ export function renderHome(ctx) {
         const code = el.querySelector('#class-code')?.value || classes;
         if (saved && !fresh) {
           openModal(
-            `<h2>開始新任務？</h2><p>你已有一份${completed ? '完成' : '進行中'}的記錄。開始新任務會清除此裝置上的進度，但已交到班級資料庫的記錄會保留。</p>
+            `<h2>開始新任務？</h2><p>你已有一份${completed ? '完成' : '進行中'}的記錄。開始新任務會清除此裝置上的進度；未完成的網上進度會被新任務取代，已完成的報告會保留。</p>
              <div class="btn-row"><button class="btn" id="new-yes">開始新任務</button><button class="btn btn-ghost" id="new-no" style="color:#08243a;border-color:rgba(8,36,58,.18)">取消</button></div>`,
           ).el;
           document.getElementById('new-yes').addEventListener('click', () => {
